@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package object_storage;
+
+service ObjectStorageService {
+  rpc Authenticate (AuthenticationRequest) returns (AuthenticationResponse) {}
+  rpc UploadObject (UploadObjectRequest) returns (UploadObjectResponse) {}
+  rpc GetObject (GetObjectRequest) returns (GetObjectResponse) {}
+  rpc ListObjects (ListObjectsRequest) returns (ListObjectsResponse) {}
+  rpc DeleteObject (DeleteObjectRequest) returns (DeleteObjectResponse) {}
+}
+
+message AuthenticationRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AuthenticationResponse {
+  string token = 1;
+}
+
+message UploadObjectRequest {
+  string token = 1;
+  string bucket_name = 2;
+  string object_key = 3;
+  bytes data = 4;
+  bool compress = 5;
+}
+
+message UploadObjectResponse {
+  string message = 1;
+  ObjectMetadata metadata = 2;
+}
+
+message GetObjectRequest {
+  string token = 1;
+  string bucket_name = 2;
+  string object_key = 3;
+}
+
+message GetObjectResponse {
+  ObjectMetadata metadata = 1;
+  bytes data = 2;
+}
+
+message ListObjectsRequest {
+  string token = 1;
+  string bucket_name = 2;
+}
+
+message ListObjectsResponse {
+  repeated ObjectMetadata objects = 1;
+}
+
+message DeleteObjectRequest {
+  string token = 1;
+  string bucket_name = 2;
+  string object_key = 3;
+}
+
+message DeleteObjectResponse {
+  string message = 1;
+}
+
+message ObjectMetadata {
+  string object_key = 1;
+  string bucket_name = 2;
+  int64 size = 3;
+  string md5_hash = 4;
+  string mime_type = 5;
+  string created_at = 6;
+  string modified_at = 7;
+  string owner_id = 8;
+  bool is_compressed = 9;
+}

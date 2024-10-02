@@ -8,10 +8,11 @@ import logging
 from auth.jwt_manager import generate_token, verify_token
 from auth.user_manager import authenticate_user
 from functools import wraps
+from config import config
 
-logging.basicConfig(filename='server.log', level=logging.ERROR)
+logging.basicConfig(filename=config.LOG_FILE, level=config.LOG_LEVEL)
 grpc_logger = logging.getLogger('grpc')
-grpc_logger.setLevel(logging.ERROR)
+grpc_logger.setLevel(config.LOG_LEVEL)
 
 def auth_middleware(func):
     @wraps(func)
@@ -81,6 +82,21 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
             context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     @auth_middleware
+    def GetObjectById(self, request, context):
+        try:
+            storage_object = self.storage.get_object_by_id(request.object_id)
+            if storage_object.metadata.owner_id != context.user_id and context.role != 'admin':
+                context.abort(grpc.StatusCode.PERMISSION_DENIED, "Access denied")
+            return object_storage_pb2.GetObjectResponse(
+                metadata=self._metadata_to_proto(storage_object.metadata),
+                data=storage_object.data
+            )
+        except FileNotFoundError:
+            context.abort(grpc.StatusCode.NOT_FOUND, "Object not found")
+        except Exception as e:
+            context.abort(grpc.StatusCode.INTERNAL, str(e))
+    
+    @auth_middleware
     def ListObjects(self, request, context):
         try:
             objects = self.storage.list_objects(request.bucket_name)
@@ -116,9 +132,8 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
             is_compressed=metadata.is_compressed
         )
 
-    
 def serve():
-    storage = ObjectStorage("/tmp/object_storage")
+    storage = ObjectStorage()
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10),
         options=[
@@ -128,9 +143,9 @@ def serve():
     )
     object_storage_pb2_grpc.add_ObjectStorageServiceServicer_to_server(
         ObjectStorageServicer(storage), server)
-    server.add_insecure_port('[::]:50051')
+    server.add_insecure_port(f'[::]:{config.GRPC_SERVER_PORT}')
     server.start()
-    print("gRPC server started on port 50051")
+    print(f"gRPC server started on port {config.GRPC_SERVER_PORT}")
     server.wait_for_termination()
 
 if __name__ == '__main__':

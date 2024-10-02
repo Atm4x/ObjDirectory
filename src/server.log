@@ -1,0 +1,36 @@
+ERROR:grpc._cython.cygrpc:Unexpected [AttributeError] raised by servicer method [/object_storage.ObjectStorageService/ListObjects]
+Traceback (most recent call last):
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 682, in grpc._cython.cygrpc._handle_exceptions
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 802, in _handle_rpc
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 547, in _handle_unary_unary_rpc
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 404, in _finish_handler_with_unary_response
+  File "D:\Projects\ObjDirectory\src\grps_server.py", line 24, in wrapper
+    context.user_id = payload['user_id']
+AttributeError: 'grpc._cython.cygrpc._ServicerContext' object has no attribute 'user_id'
+ERROR:grpc._cython.cygrpc:Unexpected [TypeError] raised by servicer method [/object_storage.ObjectStorageService/Authenticate]
+Traceback (most recent call last):
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 682, in grpc._cython.cygrpc._handle_exceptions
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 802, in _handle_rpc
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 547, in _handle_unary_unary_rpc
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 404, in _finish_handler_with_unary_response
+  File "D:\Projects\ObjDirectory\src\grps_server.py", line 46, in Authenticate
+    user = await authenticate_user(request.username, request.password)
+TypeError: object dict can't be used in 'await' expression
+ERROR:grpc._cython.cygrpc:Unexpected [TypeError] raised by servicer method [/object_storage.ObjectStorageService/Authenticate]
+Traceback (most recent call last):
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 682, in grpc._cython.cygrpc._handle_exceptions
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 802, in _handle_rpc
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 547, in _handle_unary_unary_rpc
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 404, in _finish_handler_with_unary_response
+  File "D:\Projects\ObjDirectory\src\grps_server.py", line 46, in Authenticate
+    user = await authenticate_user(request.username, request.password)
+TypeError: object dict can't be used in 'await' expression
+ERROR:grpc._cython.cygrpc:Unexpected [TypeError] raised by servicer method [/object_storage.ObjectStorageService/Authenticate]
+Traceback (most recent call last):
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 682, in grpc._cython.cygrpc._handle_exceptions
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 802, in _handle_rpc
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 547, in _handle_unary_unary_rpc
+  File "src\python\grpcio\grpc\_cython\_cygrpc/aio/server.pyx.pxi", line 404, in _finish_handler_with_unary_response
+  File "D:\Projects\ObjDirectory\src\grps_server.py", line 46, in Authenticate
+    user = await authenticate_user(request.username, request.password)
+TypeError: object dict can't be used in 'await' expression

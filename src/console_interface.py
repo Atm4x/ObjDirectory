@@ -45,13 +45,22 @@ class ObjectStorageClient:
         )
         return self.stub.ListObjects(request)
 
+    def delete_object(self, bucket_name, object_key):
+        request = object_storage_pb2.DeleteObjectRequest(
+            token=self.token,
+            bucket_name=bucket_name,
+            object_key=object_key
+        )
+        return self.stub.DeleteObject(request)
+
 def print_menu():
     print("\n=== Object Storage Console ===")
     print("1. Authenticate")
     print("2. Upload file")
     print("3. Download file")
     print("4. List files")
-    print("5. Exit")
+    print("5. Delete file")
+    print("6. Exit")
     print("============================")
 
 def authenticate(client):
@@ -109,6 +118,16 @@ def list_files(client):
     except grpc.RpcError as e:
         print(f"Error listing files: {e.details()}")
 
+def delete_file(client):
+    bucket_name = input("Enter bucket name: ")
+    object_key = input("Enter object key: ")
+
+    try:
+        response = client.delete_object(bucket_name, object_key)
+        print(f"File deleted successfully. Message: {response.message}")
+    except grpc.RpcError as e:
+        print(f"Error deleting file: {e.details()}")
+
 def main():
     client = ObjectStorageClient()
 
@@ -134,6 +153,11 @@ def main():
             else:
                 list_files(client)
         elif choice == '5':
+            if not client.token:
+                print("Please authenticate first")
+            else:
+                delete_file(client)
+        elif choice == '6':
             print("Exiting...")
             break
         else:

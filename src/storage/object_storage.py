@@ -1,95 +1,102 @@
-import os
-
 import json
-from typing import List
+from typing import List, Dict
 from .models import ObjectMetadata, StorageObject
-from utils.file_utils import calculate_md5, get_mime_type, compress_data, decompress_data
-
+from .block_storage import BlockStorage
+from utils.file_utils import calculate_md5, compress_data, decompress_data
 from datetime import datetime
+import rocksdbpy
+import os
+from config import config
 
 class ObjectStorage:
-    def __init__(self, root_dir: str):
-        self.root_dir = root_dir
-        self._create_directory_structure()
-
-    def _create_directory_structure(self):
-        os.makedirs(os.path.join(self.root_dir, "buckets"), exist_ok=True)
-        os.makedirs(os.path.join(self.root_dir, "metadata"), exist_ok=True)
-        os.makedirs(os.path.join(self.root_dir, "temp"), exist_ok=True)
+    def __init__(self):
+        opts = rocksdbpy.Option()
+        opts.create_if_missing(True)
+        self.db = rocksdbpy.open(config.ROCKSDB_PATH, opts)
+        self.block_storage = BlockStorage()
 
     def upload_file(self, bucket_name: str, object_key: str, data: bytes, owner_id: str, compress: bool = False) -> StorageObject:
         if compress:
             data = compress_data(data)
+
+        block_ids = self.block_storage.write_blocks(data)
 
         metadata = ObjectMetadata(
             object_key=object_key,
             bucket_name=bucket_name,
             size=len(data),
             md5_hash=calculate_md5(data),
-            mime_type="application/octet-stream",  # Используем общий тип для загруженных данных
+            mime_type="application/octet-stream",
             created_at=datetime.now(),
             modified_at=datetime.now(),
             owner_id=owner_id,
             acl={"owner": "FULL_CONTROL"},
-            is_compressed=compress
+            is_compressed=compress,
+            block_ids=block_ids
         )
 
         storage_object = StorageObject(metadata=metadata, data=data)
-        self._save_object(storage_object)
+        self._save_metadata(storage_object.metadata)
 
         return storage_object
 
     def get_object(self, bucket_name: str, object_key: str) -> StorageObject:
-        metadata_path = os.path.join(self.root_dir, "metadata", bucket_name, f"{object_key}.meta")
-        object_path = os.path.join(self.root_dir, "buckets", bucket_name, object_key)
+        metadata = self._get_metadata(bucket_name, object_key)
 
-        if not os.path.exists(metadata_path) or not os.path.exists(object_path):
-            raise FileNotFoundError(f"Object {object_key} not found in bucket {bucket_name}")
-
-        with open(metadata_path, "r") as file:
-            metadata_dict = json.load(file)
-            metadata = ObjectMetadata(**metadata_dict)
-
-        with open(object_path, "rb") as file:
-            data = file.read()
+        data = self.block_storage.read_blocks(metadata.block_ids)
 
         if metadata.is_compressed:
             data = decompress_data(data)
 
         return StorageObject(metadata=metadata, data=data)
 
-    def _save_object(self, storage_object: StorageObject):
-        bucket_path = os.path.join(self.root_dir, "buckets", storage_object.metadata.bucket_name)
-        os.makedirs(bucket_path, exist_ok=True)
+    def _metadata_to_dict(self, metadata: ObjectMetadata) -> dict:
+        metadata_dict = metadata.__dict__.copy()
+        metadata_dict['created_at'] = metadata_dict['created_at'].isoformat()
+        metadata_dict['modified_at'] = metadata_dict['modified_at'].isoformat()
+        return metadata_dict
 
-        object_path = os.path.join(bucket_path, storage_object.metadata.object_key)
-        with open(object_path, "wb") as file:
-            file.write(storage_object.data)
+    def _get_metadata(self, bucket_name: str, object_key: str) -> ObjectMetadata:
+        metadata_key = f"{bucket_name}:{object_key}".encode()
+        metadata_json = self.db.get(metadata_key)
 
-        metadata_path = os.path.join(self.root_dir, "metadata", storage_object.metadata.bucket_name)
-        os.makedirs(metadata_path, exist_ok=True)
+        if metadata_json is None:
+            raise FileNotFoundError(f"Object {object_key} not found in bucket {bucket_name}")
 
-        metadata_file = os.path.join(metadata_path, f"{storage_object.metadata.object_key}.meta")
-        with open(metadata_file, "w") as file:
-            # Convert datetime objects to strings
-            metadata_dict = storage_object.metadata.__dict__.copy()
-            metadata_dict['created_at'] = metadata_dict['created_at'].isoformat()
-            metadata_dict['modified_at'] = metadata_dict['modified_at'].isoformat()
-            json.dump(metadata_dict, file)
+        metadata_dict = json.loads(metadata_json)
+        metadata_dict['created_at'] = datetime.fromisoformat(metadata_dict['created_at'])
+        metadata_dict['modified_at'] = datetime.fromisoformat(metadata_dict['modified_at'])
+        return ObjectMetadata(**metadata_dict)
+
+    def _save_metadata(self, metadata: ObjectMetadata):
+        metadata_key = f"{metadata.bucket_name}:{metadata.object_key}".encode()
+        metadata_dict = self._metadata_to_dict(metadata)
+        metadata_json = json.dumps(metadata_dict)
+        self.db.set(metadata_key, metadata_json.encode())
 
     def list_objects(self, bucket_name: str) -> List[ObjectMetadata]:
-        metadata_path = os.path.join(self.root_dir, "metadata", bucket_name)
         objects = []
-        
-        if os.path.exists(metadata_path):
-            for filename in os.listdir(metadata_path):
-                if filename.endswith(".meta"):
-                    with open(os.path.join(metadata_path, filename), "r") as file:
-                        metadata_dict = json.load(file)
-                        # Convert string dates back to datetime objects
-                        metadata_dict['created_at'] = datetime.fromisoformat(metadata_dict['created_at'])
-                        metadata_dict['modified_at'] = datetime.fromisoformat(metadata_dict['modified_at'])
-                        metadata = ObjectMetadata(**metadata_dict)
-                        objects.append(metadata)
-        
+        iterator = self.db.iterator(mode='from', key=bucket_name.encode())
+        for key, value in iterator:
+            key = key.decode()
+            if not key.startswith(f"{bucket_name}:"):
+                break
+            metadata_dict = json.loads(value)
+            metadata_dict['created_at'] = datetime.fromisoformat(metadata_dict['created_at'])
+            metadata_dict['modified_at'] = datetime.fromisoformat(metadata_dict['modified_at'])
+            metadata = ObjectMetadata(**metadata_dict)
+            objects.append(metadata)
         return objects
+
+    def delete_object(self, bucket_name: str, object_key: str):
+        metadata = self._get_metadata(bucket_name, object_key)
+
+        # Delete metadata from RocksDB
+        metadata_key = f"{bucket_name}:{object_key}".encode()
+        self.db.delete(metadata_key)
+
+        # Delete blocks from block storage
+        self.block_storage.delete_blocks(metadata.block_ids)
+
+    def __del__(self):
+        self.db.close()

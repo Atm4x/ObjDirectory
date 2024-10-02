@@ -3,7 +3,7 @@ import mimetypes
 import gzip
 
 def calculate_md5(data: bytes) -> str:
-    print(data);
+    print(data)
     return hashlib.md5(data).hexdigest()
 
 def get_mime_type(file_path: str) -> str:

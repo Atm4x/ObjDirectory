@@ -3,6 +3,7 @@ from typing import List, Dict
 from .models import ObjectMetadata, StorageObject
 from .block_storage import BlockStorage
 from utils.file_utils import calculate_md5, compress_data, decompress_data
+from utils.bloom_filter import BloomFilter
 from datetime import datetime
 import rocksdbpy
 import os
@@ -14,12 +15,18 @@ class ObjectStorage:
         opts.create_if_missing(True)
         self.db = rocksdbpy.open(config.ROCKSDB_PATH, opts)
         self.block_storage = BlockStorage()
+        self.chunk_bloom_filter = BloomFilter(1000000, 7)
 
     def upload_file(self, bucket_name: str, object_key: str, data: bytes, owner_id: str, compress: bool = False) -> StorageObject:
         if compress:
             data = compress_data(data)
 
         block_ids = self.block_storage.write_blocks(data)
+
+        for block_id in block_ids:
+            if not self.chunk_bloom_filter.check(block_id):
+                # Block might not exist in the filter, add it
+                self.chunk_bloom_filter.add(block_id)
 
         metadata = ObjectMetadata(
             object_key=object_key,

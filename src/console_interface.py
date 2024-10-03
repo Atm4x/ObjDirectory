@@ -4,7 +4,7 @@ import object_storage_pb2
 import object_storage_pb2_grpc
 
 class ObjectStorageClient:
-    def __init__(self, address='localhost:50051'):
+    def __init__(self, address='localhost:23009'):
         self.channel = grpc.insecure_channel(
             address,
             options=[

@@ -1,0 +1,9 @@
+version: '3'
+
+services:
+  grpc_server:
+    build: .
+    ports:
+      - "23009:23009"
+    volumes:
+      - ./logs:/app/logs

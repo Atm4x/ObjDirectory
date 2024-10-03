@@ -4,8 +4,6 @@ grpcio-tools==1.59.0
 protobuf==4.24.3
 pyjwt==2.3.0
 rocksdb-py
-aiofiles
-aiocache
-aioconsole 
 grpcio-tools
-flask
+redis
+mmh3

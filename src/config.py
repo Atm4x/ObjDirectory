@@ -15,7 +15,7 @@ class Config:
     BLOCK_STORAGE_PATH = os.path.join(BASE_DIR, 'data', 'blocks')
     
     # Server
-    GRPC_SERVER_PORT = 50051
+    GRPC_SERVER_PORT = 23009
     MAX_WORKERS = 3
     
     # Logging

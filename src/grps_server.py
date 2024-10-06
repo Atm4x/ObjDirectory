@@ -151,19 +151,24 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
         )
 
     def _metadata_to_proto(self, metadata):
-        return object_storage_pb2.ObjectMetadata(
-            object_key=metadata.object_key,
-            bucket_name=metadata.bucket_name,
-            size=metadata.size,
-            md5_hash=metadata.md5_hash,
-            mime_type=metadata.mime_type,
-            created_at=metadata.created_at.isoformat(),
-            modified_at=metadata.modified_at.isoformat(),
-            owner_id=metadata.owner_id,
-            is_compressed=metadata.is_compressed,
-            acl=json.dumps(metadata.acl),  # Convert dict to JSON string
-            block_ids=metadata.block_ids
-        )
+        try:
+            return object_storage_pb2.ObjectMetadata(
+                object_key=str(metadata.object_key),
+                bucket_name=str(metadata.bucket_name),
+                size=int(metadata.size),
+                md5_hash=str(metadata.md5_hash),
+                mime_type=str(metadata.mime_type),
+                created_at=metadata.created_at.isoformat(),
+                modified_at=metadata.modified_at.isoformat(),
+                owner_id=str(metadata.owner_id),
+                is_compressed=bool(metadata.is_compressed),
+                acl=json.dumps(metadata.acl),
+                block_ids=[str(block_id) for block_id in metadata.block_ids]
+            )
+        except Exception as e:
+            print(f"Error in _metadata_to_proto: {str(e)}")
+            print(f"Metadata: {metadata}")
+            raise
 
 def serve():
     storage = ObjectStorage()

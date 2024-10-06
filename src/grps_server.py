@@ -6,9 +6,13 @@ from storage.object_storage import ObjectStorage
 from datetime import datetime
 import logging
 from auth.jwt_manager import generate_token, verify_token
-from auth.user_manager import authenticate_user
+from auth.user_manager import user_manager
 from functools import wraps
 from config import config
+import json
+import traceback
+import sys
+from google.protobuf.timestamp_pb2 import Timestamp
 
 logging.basicConfig(filename=config.LOG_FILE, level=config.LOG_LEVEL)
 grpc_logger = logging.getLogger('grpc')
@@ -42,7 +46,7 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
         self.storage = storage
 
     def Authenticate(self, request, context):
-        user = authenticate_user(request.username, request.password)
+        user = user_manager.authenticate_user(request.username, request.password)
         if user:
             token = generate_token(user['user_id'], user['role'])
             return object_storage_pb2.AuthenticationResponse(token=token)
@@ -51,6 +55,10 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
 
     @auth_middleware
     def UploadObject(self, request, context):
+        if not user_manager.check_bucket_ownership(context.user_id, request.bucket_name):
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "You don't own this bucket")
+        
+
         try:
             storage_object = self.storage.upload_file(
                 request.bucket_name,
@@ -59,19 +67,23 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
                 context.user_id,
                 request.compress
             )
+            
             return object_storage_pb2.UploadObjectResponse(
                 message="Object uploaded successfully",
                 metadata=self._metadata_to_proto(storage_object.metadata)
             )
         except Exception as e:
-            context.abort(grpc.StatusCode.INTERNAL, str(e))
+            exc_info = sys.exc_info()
+            context.abort(grpc.StatusCode.INTERNAL, ''.join(traceback.format_exception(*exc_info)))
+
 
     @auth_middleware
     def GetObject(self, request, context):
+        if not user_manager.check_bucket_ownership(context.user_id, request.bucket_name):
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "You don't own this bucket")
+        
         try:
             storage_object = self.storage.get_object(request.bucket_name, request.object_key)
-            if storage_object.metadata.owner_id != context.user_id and context.role != 'admin':
-                context.abort(grpc.StatusCode.PERMISSION_DENIED, "Access denied")
             return object_storage_pb2.GetObjectResponse(
                 metadata=self._metadata_to_proto(storage_object.metadata),
                 data=storage_object.data
@@ -98,10 +110,11 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
     
     @auth_middleware
     def ListObjects(self, request, context):
+        if not user_manager.check_bucket_ownership(context.user_id, request.bucket_name):
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "You don't own this bucket")
+        
         try:
             objects = self.storage.list_objects(request.bucket_name)
-            if context.role != 'admin':
-                objects = [obj for obj in objects if obj.owner_id == context.user_id]
             return object_storage_pb2.ListObjectsResponse(
                 objects=[self._metadata_to_proto(obj) for obj in objects]
             )
@@ -109,8 +122,10 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
             context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     @auth_middleware
-    @admin_required
     def DeleteObject(self, request, context):
+        if not user_manager.check_bucket_ownership(context.user_id, request.bucket_name):
+            context.abort(grpc.StatusCode.PERMISSION_DENIED, "You don't own this bucket")
+        
         try:
             self.storage.delete_object(request.bucket_name, request.object_key)
             return object_storage_pb2.DeleteObjectResponse(message="Object deleted successfully")
@@ -118,6 +133,22 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
             context.abort(grpc.StatusCode.NOT_FOUND, "Object not found")
         except Exception as e:
             context.abort(grpc.StatusCode.INTERNAL, str(e))
+
+    @auth_middleware
+    def ListUserBuckets(self, request, context):
+        try:
+            buckets = user_manager.get_user_buckets(context.user_id)
+            return object_storage_pb2.ListUserBucketsResponse(
+                buckets=[self._bucket_to_proto(bucket) for bucket in buckets]
+            )
+        except Exception as e:
+            context.abort(grpc.StatusCode.INTERNAL, str(e))
+
+    def _bucket_to_proto(self, bucket):
+        return object_storage_pb2.BucketInfo(
+            id=bucket['id'],
+            name=bucket['name']
+        )
 
     def _metadata_to_proto(self, metadata):
         return object_storage_pb2.ObjectMetadata(
@@ -129,7 +160,9 @@ class ObjectStorageServicer(object_storage_pb2_grpc.ObjectStorageServiceServicer
             created_at=metadata.created_at.isoformat(),
             modified_at=metadata.modified_at.isoformat(),
             owner_id=metadata.owner_id,
-            is_compressed=metadata.is_compressed
+            is_compressed=metadata.is_compressed,
+            acl=json.dumps(metadata.acl),  # Convert dict to JSON string
+            block_ids=metadata.block_ids
         )
 
 def serve():

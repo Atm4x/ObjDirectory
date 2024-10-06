@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Dict
 from config import config
 
-def generate_token(user_id: str, role: str) -> str:
+def generate_token(user_id: int, role: str) -> str:
     payload = {
         'user_id': user_id,
         'role': role,

@@ -3,6 +3,13 @@ import os
 class Config:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     
+    # Database
+    DB_HOST = '89.250.8.5'
+    DB_PORT = 23010
+    DB_NAME = 'ObjectDirectory'
+    DB_USER = 'postgres'
+    DB_PASSWORD = 'ooo196911'
+    
     # RocksDB
     ROCKSDB_PATH = os.path.join(BASE_DIR, 'data', 'rocksdb')
     

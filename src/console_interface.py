@@ -38,6 +38,13 @@ class ObjectStorageClient:
         )
         return self.stub.GetObject(request)
 
+    def get_object_by_id(self, object_id):
+        request = object_storage_pb2.GetObjectByIdRequest(
+            token=self.token,
+            object_id=object_id
+        )
+        return self.stub.GetObjectById(request)
+
     def list_objects(self, bucket_name):
         request = object_storage_pb2.ListObjectsRequest(
             token=self.token,
@@ -53,14 +60,20 @@ class ObjectStorageClient:
         )
         return self.stub.DeleteObject(request)
 
+    def list_user_buckets(self):
+        request = object_storage_pb2.ListUserBucketsRequest(token=self.token)
+        return self.stub.ListUserBuckets(request)
+
 def print_menu():
     print("\n=== Object Storage Console ===")
     print("1. Authenticate")
     print("2. Upload file")
     print("3. Download file")
-    print("4. List files")
-    print("5. Delete file")
-    print("6. Exit")
+    print("4. Download file by ID")
+    print("5. List files")
+    print("6. Delete file")
+    print("7. List user buckets")
+    print("8. Exit")
     print("============================")
 
 def authenticate(client):
@@ -104,6 +117,18 @@ def download_file(client):
     except grpc.RpcError as e:
         print(f"Error downloading file: {e.details()}")
 
+def download_file_by_id(client):
+    object_id = input("Enter object ID: ")
+    save_path = input("Enter save path: ")
+
+    try:
+        response = client.get_object_by_id(object_id)
+        with open(save_path, "wb") as file:
+            file.write(response.data)
+        print(f"File downloaded successfully to {save_path}")
+    except grpc.RpcError as e:
+        print(f"Error downloading file: {e.details()}")
+
 def list_files(client):
     bucket_name = input("Enter bucket name: ")
     
@@ -128,6 +153,18 @@ def delete_file(client):
     except grpc.RpcError as e:
         print(f"Error deleting file: {e.details()}")
 
+def list_user_buckets(client):
+    try:
+        response = client.list_user_buckets()
+        if not response.buckets:
+            print("No buckets found for the user")
+        else:
+            print("\nUser buckets:")
+            for bucket in response.buckets:
+                print(f"- {bucket.name} (ID: {bucket.id})")
+    except grpc.RpcError as e:
+        print(f"Error listing user buckets: {e.details()}")
+
 def main():
     client = ObjectStorageClient()
 
@@ -151,13 +188,23 @@ def main():
             if not client.token:
                 print("Please authenticate first")
             else:
-                list_files(client)
+                download_file_by_id(client)
         elif choice == '5':
             if not client.token:
                 print("Please authenticate first")
             else:
-                delete_file(client)
+                list_files(client)
         elif choice == '6':
+            if not client.token:
+                print("Please authenticate first")
+            else:
+                delete_file(client)
+        elif choice == '7':
+            if not client.token:
+                print("Please authenticate first")
+            else:
+                list_user_buckets(client)
+        elif choice == '8':
             print("Exiting...")
             break
         else:

@@ -8,6 +8,7 @@ service ObjectStorageService {
   rpc GetObject (GetObjectRequest) returns (GetObjectResponse) {}
   rpc ListObjects (ListObjectsRequest) returns (ListObjectsResponse) {}
   rpc DeleteObject (DeleteObjectRequest) returns (DeleteObjectResponse) {}
+  rpc ListUserBuckets (ListUserBucketsRequest) returns (ListUserBucketsResponse) {}
 }
 
 message AuthenticationRequest {
@@ -63,13 +64,28 @@ message DeleteObjectResponse {
 }
 
 message ObjectMetadata {
-  string object_key = 1;
-  string bucket_name = 2;
-  int64 size = 3;
-  string md5_hash = 4;
-  string mime_type = 5;
-  string created_at = 6;
-  string modified_at = 7;
-  string owner_id = 8;
-  bool is_compressed = 9;
+    string object_key = 1;
+    string bucket_name = 2;
+    int64 size = 3;
+    string md5_hash = 4;
+    string mime_type = 5;
+    string created_at = 6;
+    string modified_at = 7;
+    string owner_id = 8;
+    bool is_compressed = 9;
+    string acl = 10;
+    repeated string block_ids = 11;
+}
+
+message ListUserBucketsRequest {
+  string token = 1;
+}
+
+message ListUserBucketsResponse {
+  repeated BucketInfo buckets = 1;
+}
+
+message BucketInfo {
+  int32 id = 1;
+  string name = 2;
 }

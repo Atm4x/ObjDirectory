@@ -7,3 +7,5 @@ rocksdb-py
 grpcio-tools
 redis
 mmh3
+psycopg2-binary
+bcrypt

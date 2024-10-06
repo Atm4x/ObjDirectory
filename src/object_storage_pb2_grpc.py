@@ -39,6 +39,11 @@ class ObjectStorageServiceStub(object):
                 request_serializer=object__storage__pb2.DeleteObjectRequest.SerializeToString,
                 response_deserializer=object__storage__pb2.DeleteObjectResponse.FromString,
                 )
+        self.ListUserBuckets = channel.unary_unary(
+                '/object_storage.ObjectStorageService/ListUserBuckets',
+                request_serializer=object__storage__pb2.ListUserBucketsRequest.SerializeToString,
+                response_deserializer=object__storage__pb2.ListUserBucketsResponse.FromString,
+                )
 
 
 class ObjectStorageServiceServicer(object):
@@ -74,6 +79,12 @@ class ObjectStorageServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListUserBuckets(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ObjectStorageServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -101,6 +112,11 @@ def add_ObjectStorageServiceServicer_to_server(servicer, server):
                     servicer.DeleteObject,
                     request_deserializer=object__storage__pb2.DeleteObjectRequest.FromString,
                     response_serializer=object__storage__pb2.DeleteObjectResponse.SerializeToString,
+            ),
+            'ListUserBuckets': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListUserBuckets,
+                    request_deserializer=object__storage__pb2.ListUserBucketsRequest.FromString,
+                    response_serializer=object__storage__pb2.ListUserBucketsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -194,5 +210,22 @@ class ObjectStorageService(object):
         return grpc.experimental.unary_unary(request, target, '/object_storage.ObjectStorageService/DeleteObject',
             object__storage__pb2.DeleteObjectRequest.SerializeToString,
             object__storage__pb2.DeleteObjectResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListUserBuckets(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/object_storage.ObjectStorageService/ListUserBuckets',
+            object__storage__pb2.ListUserBucketsRequest.SerializeToString,
+            object__storage__pb2.ListUserBucketsResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
